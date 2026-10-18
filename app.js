@@ -877,23 +877,43 @@ async function updateSettingsStats() {
 
 // --- AUTHENTICATION & CLOUD SYNC ---
 async function checkAuthStatus() {
-    try {
-        const res = await fetch('/.auth/me');
-        if (res.ok) {
-            const data = await res.json();
-            const principal = data.clientPrincipal;
-            if (principal && principal.userId) {
-                currentUser = principal;
-                updateAuthUI(currentUser);
-                return currentUser;
-            }
+    // 1. Immediately load cached user from localStorage for instant offline recognition
+    const cached = localStorage.getItem('ironlog_cached_user');
+    if (cached) {
+        try {
+            currentUser = JSON.parse(cached);
+            updateAuthUI(currentUser);
+        } catch (e) {
+            localStorage.removeItem('ironlog_cached_user');
         }
-    } catch (e) {
-        console.log('Running offline or auth endpoint unavailable:', e);
     }
-    currentUser = null;
-    updateAuthUI(null);
-    return null;
+
+    // 2. Verify with SWA auth endpoint if online
+    if (navigator.onLine) {
+        try {
+            const res = await fetch('/.auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                const principal = data.clientPrincipal;
+                if (principal && principal.userId) {
+                    currentUser = principal;
+                    localStorage.setItem('ironlog_cached_user', JSON.stringify(principal));
+                    updateAuthUI(currentUser);
+                    return currentUser;
+                } else {
+                    // Explicitly logged out on server
+                    currentUser = null;
+                    localStorage.removeItem('ironlog_cached_user');
+                    updateAuthUI(null);
+                    return null;
+                }
+            }
+        } catch (e) {
+            console.log('Running offline or auth endpoint unavailable, keeping local state:', e);
+        }
+    }
+
+    return currentUser;
 }
 
 function updateAuthUI(user) {

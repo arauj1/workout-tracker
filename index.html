@@ -52,7 +52,7 @@
                 </a>
                 <div id="headerUserProfile" class="hidden" style="display: flex; align-items: center; gap: 6px;">
                     <span id="headerUserName" style="font-size: 11px; color: var(--accent-cyan); font-weight: 700; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-                    <a href="/.auth/logout?post_logout_redirect_uri=/" class="btn-remove-set" title="Sign Out" style="font-size: 14px; text-decoration: none;">🚪</a>
+                    <a href="/.auth/logout?post_logout_redirect_uri=/" onclick="localStorage.removeItem('ironlog_cached_user');" class="btn-remove-set" title="Sign Out" style="font-size: 14px; text-decoration: none;">🚪</a>
                 </div>
             </div>
         </div>
@@ -253,7 +253,7 @@
                         <div style="font-size: 11px; color: var(--text-muted);">Logged in as:</div>
                         <div id="userEmailDisplay" style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;"></div>
                         <div style="display: flex; gap: 6px;">
-                            <a href="/.auth/logout?post_logout_redirect_uri=/" class="btn btn-secondary btn-sm" style="flex: 1; text-decoration: none; text-align: center;">
+                            <a href="/.auth/logout?post_logout_redirect_uri=/" onclick="localStorage.removeItem('ironlog_cached_user');" class="btn btn-secondary btn-sm" style="flex: 1; text-decoration: none; text-align: center;">
                                 Sign Out
                             </a>
                         </div>
