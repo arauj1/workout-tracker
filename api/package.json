@@ -1,0 +1,9 @@
+{
+  "name": "ironlog-api",
+  "version": "1.0.0",
+  "description": "IronLog Serverless Cloud Sync API",
+  "main": "sync/index.js",
+  "dependencies": {
+    "@azure/cosmos": "^4.0.0"
+  }
+}

@@ -36,10 +36,25 @@
             <div class="logo-icon">⚡</div>
             <span class="logo-text">IronLog</span>
         </div>
-        <div id="headerWorkoutStatus" class="hidden" style="display: flex; align-items: center; gap: 8px;">
-            <span id="headerTimer"
-                style="font-family: var(--font-mono); font-size: 14px; font-weight: 800; color: var(--accent-emerald);">00:00</span>
-            <button id="headerFinishBtn" class="btn btn-primary btn-sm">Finish</button>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <!-- Active Workout Timer Header -->
+            <div id="headerWorkoutStatus" class="hidden" style="display: flex; align-items: center; gap: 8px;">
+                <span id="headerTimer"
+                    style="font-family: var(--font-mono); font-size: 14px; font-weight: 800; color: var(--accent-emerald);">00:00</span>
+                <button id="headerFinishBtn" class="btn btn-primary btn-sm">Finish</button>
+            </div>
+
+            <!-- User Auth Pill -->
+            <div id="headerUserAuth" style="display: flex; align-items: center; gap: 6px;">
+                <a id="headerLoginBtn" href="/.auth/login/aad?post_login_redirect_uri=/" class="btn btn-secondary btn-sm" style="text-decoration: none; font-size: 11px; padding: 4px 10px;">
+                    🔑 Sign In
+                </a>
+                <div id="headerUserProfile" class="hidden" style="display: flex; align-items: center; gap: 6px;">
+                    <span id="headerUserName" style="font-size: 11px; color: var(--accent-cyan); font-weight: 700; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                    <a href="/.auth/logout?post_logout_redirect_uri=/" class="btn-remove-set" title="Sign Out" style="font-size: 14px; text-decoration: none;">🚪</a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -215,18 +230,48 @@
                 </div>
             </div>
 
-            <!-- Phase 2 Cloud Sync Preview -->
+            <!-- Cloud Sync & Family Accounts -->
             <div class="card" style="border-color: rgba(99, 102, 241, 0.4);">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <span style="font-size: 18px;">☁️</span>
-                    <h3 style="font-size: 14px; font-weight: 700; color: #fff;">Phase 2: Cloud Sync Layer</h3>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">☁️</span>
+                        <h3 style="font-size: 14px; font-weight: 700; color: #fff;">Cloud Sync & Accounts</h3>
+                    </div>
+                    <span id="syncStatusBadge" class="sync-badge sync-pending">Local Only</span>
                 </div>
-                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
-                    Every workout record is already stored with <code style="color: var(--accent-amber); font-weight: bold;">isSynced: false</code>. Once you enjoy your local gym sessions, Phase 2 connects this app to Azure Cosmos DB for automatic cloud backups.
-                </p>
-                <div style="background-color: var(--bg-base); padding: 10px; border-radius: var(--radius-md); font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary);">
+
+                <div id="authAccountCard" style="background-color: var(--bg-base); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px;">
+                    <div id="unauthPrompt">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+                            Sign in with your Microsoft Account to isolate and back up your workouts to Azure Cosmos DB.
+                        </div>
+                        <a href="/.auth/login/aad?post_login_redirect_uri=/" class="btn btn-primary btn-full btn-sm" style="text-decoration: none;">
+                            🔑 Sign in with Microsoft Account
+                        </a>
+                    </div>
+                    <div id="authUserInfo" class="hidden">
+                        <div style="font-size: 11px; color: var(--text-muted);">Logged in as:</div>
+                        <div id="userEmailDisplay" style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;"></div>
+                        <div style="display: flex; gap: 6px;">
+                            <a href="/.auth/logout?post_logout_redirect_uri=/" class="btn btn-secondary btn-sm" style="flex: 1; text-decoration: none; text-align: center;">
+                                Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background-color: var(--bg-base); padding: 10px; border-radius: var(--radius-md); font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary); margin-bottom: 12px;">
                     <div>Local Workouts: <span id="localWorkoutsCount" style="color: #fff; font-weight: bold;">0</span></div>
                     <div>Unsynced Queue: <span id="unsyncedCount" style="color: var(--accent-amber); font-weight: bold;">0</span></div>
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                    <button id="syncNowBtn" class="btn btn-primary" style="flex: 1;">
+                        ☁️ Sync to Cloud
+                    </button>
+                    <button id="restoreCloudBtn" class="btn btn-secondary" style="flex: 1;">
+                        📥 Restore from Cloud
+                    </button>
                 </div>
             </div>
 

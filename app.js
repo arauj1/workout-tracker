@@ -9,6 +9,10 @@ let hapticsEnabled = true;
 // Active new PRs collected during the current workout
 let sessionPRs = [];
 
+// Auth & Cloud Sync State
+let currentUser = null;
+let isSyncing = false;
+
 // Routine Templates for quick start
 const ROUTINE_TEMPLATES = {
     'Push Day (Chest, Shoulders, Triceps)': [
@@ -52,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSettingsEvents();
     checkRecoverActiveWorkout();
     renderLibraryView();
+    checkAuthStatus();
 
     // Register Service Worker for offline PWA
     if ('serviceWorker' in navigator) {
@@ -116,6 +121,12 @@ function initSettingsEvents() {
         document.getElementById('restoreFileInput').click();
     });
     document.getElementById('restoreFileInput').addEventListener('change', handleImportBackup);
+
+    const syncBtn = document.getElementById('syncNowBtn');
+    if (syncBtn) syncBtn.addEventListener('click', () => syncToCloud(true));
+
+    const restoreBtn = document.getElementById('restoreCloudBtn');
+    if (restoreBtn) restoreBtn.addEventListener('click', restoreFromCloud);
 }
 
 // --- NAVIGATION & TABS ---
@@ -472,6 +483,11 @@ async function finishActiveWorkout() {
 
     // Save to IndexedDB
     await IronDB.saveWorkout(activeWorkout);
+
+    // Auto-sync in background if logged in and online
+    if (currentUser && navigator.onLine) {
+        syncToCloud(false).catch(err => console.log('Background sync deferred:', err));
+    }
 
     // Show Workout Summary Modal
     document.getElementById('summaryWorkoutTitle').textContent = activeWorkout.title;
@@ -850,7 +866,190 @@ async function updateSettingsStats() {
     const unsyncedElem = document.getElementById('unsyncedCount');
 
     if (localCountElem) localCountElem.textContent = workouts.length;
-    if (unsyncedElem) unsyncedElem.textContent = `${unsynced.length} (Ready for Phase 2)`;
+    if (unsyncedElem) {
+        if (unsynced.length === 0) {
+            unsyncedElem.innerHTML = `<span style="color: var(--accent-emerald);">0 (All Synced ☁️)</span>`;
+        } else {
+            unsyncedElem.innerHTML = `<span style="color: var(--accent-amber);">${unsynced.length} pending sync</span>`;
+        }
+    }
+}
+
+// --- AUTHENTICATION & CLOUD SYNC ---
+async function checkAuthStatus() {
+    try {
+        const res = await fetch('/.auth/me');
+        if (res.ok) {
+            const data = await res.json();
+            const principal = data.clientPrincipal;
+            if (principal && principal.userId) {
+                currentUser = principal;
+                updateAuthUI(currentUser);
+                return currentUser;
+            }
+        }
+    } catch (e) {
+        console.log('Running offline or auth endpoint unavailable:', e);
+    }
+    currentUser = null;
+    updateAuthUI(null);
+    return null;
+}
+
+function updateAuthUI(user) {
+    const loginBtn = document.getElementById('headerLoginBtn');
+    const profileDiv = document.getElementById('headerUserProfile');
+    const userNameSpan = document.getElementById('headerUserName');
+    const unauthPrompt = document.getElementById('unauthPrompt');
+    const authUserInfo = document.getElementById('authUserInfo');
+    const userEmailDisplay = document.getElementById('userEmailDisplay');
+    const syncStatusBadge = document.getElementById('syncStatusBadge');
+
+    if (user) {
+        if (loginBtn) loginBtn.classList.add('hidden');
+        if (profileDiv) profileDiv.classList.remove('hidden');
+        if (userNameSpan) userNameSpan.textContent = user.userDetails || 'Signed In';
+        if (unauthPrompt) unauthPrompt.classList.add('hidden');
+        if (authUserInfo) authUserInfo.classList.remove('hidden');
+        if (userEmailDisplay) userEmailDisplay.textContent = user.userDetails || 'Family Member';
+        if (syncStatusBadge) {
+            syncStatusBadge.className = 'sync-badge sync-done';
+            syncStatusBadge.textContent = '✓ Cloud Connected';
+        }
+    } else {
+        if (loginBtn) loginBtn.classList.remove('hidden');
+        if (profileDiv) profileDiv.classList.add('hidden');
+        if (unauthPrompt) unauthPrompt.classList.remove('hidden');
+        if (authUserInfo) authUserInfo.classList.add('hidden');
+        if (syncStatusBadge) {
+            syncStatusBadge.className = 'sync-badge sync-pending';
+            syncStatusBadge.textContent = 'Local Only';
+        }
+    }
+}
+
+async function syncToCloud(interactive = true) {
+    if (isSyncing) return;
+
+    if (!currentUser) {
+        if (interactive) {
+            if (confirm("You are not signed in. Sign in with your Microsoft Account to sync your workouts to your personal cloud storage?")) {
+                window.location.href = '/.auth/login/aad?post_login_redirect_uri=/';
+            }
+        }
+        return;
+    }
+
+    const unsynced = await IronDB.getUnsyncedWorkouts();
+    if (unsynced.length === 0) {
+        if (interactive) alert("All workouts are already backed up to the cloud!");
+        updateSettingsStats();
+        return;
+    }
+
+    const syncBtn = document.getElementById('syncNowBtn');
+    if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.textContent = '⏳ Syncing...';
+    }
+    isSyncing = true;
+
+    try {
+        const response = await fetch('/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workouts: unsynced })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `Server error (${response.status})`);
+        }
+
+        const result = await response.json();
+
+        // Mark as synced locally in IndexedDB
+        for (const w of unsynced) {
+            await IronDB.markWorkoutSynced(w.id);
+        }
+
+        await updateSettingsStats();
+        renderHistoryView();
+
+        if (interactive) {
+            alert(`🎉 Cloud Sync Complete! Successfully backed up ${result.syncedCount || unsynced.length} workout(s) to Azure Cosmos DB.`);
+        }
+    } catch (err) {
+        console.error('Cloud sync error:', err);
+        if (interactive) {
+            alert(`Cloud sync could not be completed: ${err.message}`);
+        }
+    } finally {
+        isSyncing = false;
+        if (syncBtn) {
+            syncBtn.disabled = false;
+            syncBtn.textContent = '☁️ Sync to Cloud';
+        }
+    }
+}
+
+async function restoreFromCloud() {
+    if (!currentUser) {
+        if (confirm("Please sign in with your Microsoft Account to restore your workouts from the cloud. Sign in now?")) {
+            window.location.href = '/.auth/login/aad?post_login_redirect_uri=/';
+        }
+        return;
+    }
+
+    if (!confirm("Download and restore your workouts from Azure Cosmos DB? Workouts from your cloud account will be added to this device.")) {
+        return;
+    }
+
+    const restoreBtn = document.getElementById('restoreCloudBtn');
+    if (restoreBtn) {
+        restoreBtn.disabled = true;
+        restoreBtn.textContent = '⏳ Restoring...';
+    }
+
+    try {
+        const response = await fetch('/api/sync', {
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `Server error (${response.status})`);
+        }
+
+        const data = await response.json();
+        const cloudWorkouts = data.workouts || [];
+
+        if (cloudWorkouts.length === 0) {
+            alert("No cloud workouts found for your account.");
+            return;
+        }
+
+        let restoredCount = 0;
+        for (const w of cloudWorkouts) {
+            w.isSynced = true;
+            await IronDB.saveWorkout(w);
+            restoredCount++;
+        }
+
+        await updateSettingsStats();
+        renderHistoryView();
+        renderPRsView();
+
+        alert(`✅ Restored ${restoredCount} workout(s) from Azure Cosmos DB!`);
+    } catch (err) {
+        console.error('Cloud restore error:', err);
+        alert(`Failed to restore from cloud: ${err.message}`);
+    } finally {
+        if (restoreBtn) {
+            restoreBtn.disabled = false;
+            restoreBtn.textContent = '📥 Restore from Cloud';
+        }
+    }
 }
 
 // Modals generic overlay click to close

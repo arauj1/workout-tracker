@@ -1,5 +1,5 @@
 // sw.js - IronLog Service Worker for 100% Offline Gym Operation
-const CACHE_NAME = 'ironlog-v1';
+const CACHE_NAME = 'ironlog-v2';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -39,12 +39,24 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-    // Stale-while-revalidate strategy for seamless offline availability
+    const url = new URL(e.request.url);
+
+    // Dynamic API and auth routes should always go directly to the network
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.auth/')) {
+        return;
+    }
+
+    // Only cache GET requests
+    if (e.request.method !== 'GET') {
+        return;
+    }
+
+    // Stale-while-revalidate strategy for seamless offline availability of static assets
     e.respondWith(
         caches.match(e.request).then((cachedResponse) => {
             const fetchPromise = fetch(e.request)
                 .then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200 && e.request.method === 'GET') {
+                    if (networkResponse && networkResponse.status === 200) {
                         const responseClone = networkResponse.clone();
                         caches.open(CACHE_NAME).then((cache) => {
                             cache.put(e.request, responseClone);
@@ -52,7 +64,7 @@ self.addEventListener('fetch', (e) => {
                     }
                     return networkResponse;
                 })
-                .catch(() => cachedResponse); // If network fails (e.g. offline at the gym), return cached
+                .catch(() => cachedResponse); // If offline at the gym, serve from cache
 
             return cachedResponse || fetchPromise;
         })
