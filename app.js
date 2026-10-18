@@ -13,6 +13,11 @@ let sessionPRs = [];
 let currentUser = null;
 let isSyncing = false;
 
+// Screen Wake Lock & Preferences
+let keepScreenAwake = true;
+let screenWakeLock = null;
+let autoRestTimer = false;
+
 // Routine Templates for quick start
 const ROUTINE_TEMPLATES = {
     'Push Day (Chest, Shoulders, Triceps)': [
@@ -72,6 +77,8 @@ async function loadSettings() {
     defaultRestSeconds = await IronDB.getSetting('defaultRestSeconds', 90);
     soundEnabled = await IronDB.getSetting('soundEnabled', true);
     hapticsEnabled = await IronDB.getSetting('hapticsEnabled', true);
+    keepScreenAwake = await IronDB.getSetting('keepScreenAwake', true);
+    autoRestTimer = await IronDB.getSetting('autoRestTimer', false);
 
     // Sync Settings UI
     if (currentWeightUnit === 'kg') {
@@ -82,11 +89,19 @@ async function loadSettings() {
         document.getElementById('unitKgBtn').classList.remove('active');
     }
 
-    const restSelect = document.getElementById('defaultRestSelect');
-    if (restSelect) restSelect.value = String(defaultRestSeconds);
-
     const soundChk = document.getElementById('soundToggle');
     if (soundChk) soundChk.checked = soundEnabled;
+
+    const wakeLockChk = document.getElementById('wakeLockToggle');
+    if (wakeLockChk) wakeLockChk.checked = keepScreenAwake;
+
+    const autoRestChk = document.getElementById('autoRestTimerToggle');
+    if (autoRestChk) autoRestChk.checked = autoRestTimer;
+
+    if (keepScreenAwake) {
+        requestWakeLock();
+    }
+    updateWakeLockUI();
 }
 
 function initSettingsEvents() {
@@ -106,15 +121,37 @@ function initSettingsEvents() {
         renderActiveWorkoutExercises();
     });
 
-    document.getElementById('defaultRestSelect').addEventListener('change', async (e) => {
-        defaultRestSeconds = parseInt(e.target.value, 10);
-        await IronDB.setSetting('defaultRestSeconds', defaultRestSeconds);
-    });
-
     document.getElementById('soundToggle').addEventListener('change', async (e) => {
         soundEnabled = e.target.checked;
         await IronDB.setSetting('soundEnabled', soundEnabled);
     });
+
+    const wakeLockChk = document.getElementById('wakeLockToggle');
+    if (wakeLockChk) {
+        wakeLockChk.addEventListener('change', async (e) => {
+            keepScreenAwake = e.target.checked;
+            await IronDB.setSetting('keepScreenAwake', keepScreenAwake);
+            if (keepScreenAwake) {
+                await requestWakeLock();
+            } else {
+                await releaseWakeLock();
+            }
+            updateWakeLockUI();
+        });
+    }
+
+    const autoRestChk = document.getElementById('autoRestTimerToggle');
+    if (autoRestChk) {
+        autoRestChk.addEventListener('change', async (e) => {
+            autoRestTimer = e.target.checked;
+            await IronDB.setSetting('autoRestTimer', autoRestTimer);
+        });
+    }
+
+    const activeWakeBtn = document.getElementById('activeWakeLockBtn');
+    if (activeWakeBtn) {
+        activeWakeBtn.addEventListener('click', toggleScreenWakeLock);
+    }
 
     document.getElementById('backupJsonBtn').addEventListener('click', exportBackupJSON);
     document.getElementById('restoreJsonBtn').addEventListener('click', () => {
@@ -128,6 +165,69 @@ function initSettingsEvents() {
     const restoreBtn = document.getElementById('restoreCloudBtn');
     if (restoreBtn) restoreBtn.addEventListener('click', restoreFromCloud);
 }
+
+// --- SCREEN WAKE LOCK CONTROLS ---
+async function requestWakeLock() {
+    if (!keepScreenAwake) return;
+    if ('wakeLock' in navigator) {
+        try {
+            screenWakeLock = await navigator.wakeLock.request('screen');
+            screenWakeLock.addEventListener('release', () => {
+                screenWakeLock = null;
+                updateWakeLockUI();
+            });
+            updateWakeLockUI();
+        } catch (err) {
+            console.log('Screen Wake Lock request:', err.message);
+        }
+    }
+}
+
+async function releaseWakeLock() {
+    if (screenWakeLock !== null) {
+        try {
+            await screenWakeLock.release();
+            screenWakeLock = null;
+        } catch (e) {
+            console.log('Error releasing wake lock:', e);
+        }
+    }
+    updateWakeLockUI();
+}
+
+function updateWakeLockUI() {
+    const btn = document.getElementById('activeWakeLockBtn');
+    if (btn) {
+        if (keepScreenAwake) {
+            btn.textContent = '☀️ Screen: Awake';
+            btn.style.color = 'var(--accent-emerald)';
+            btn.style.borderColor = 'var(--accent-emerald)';
+        } else {
+            btn.textContent = '🌙 Screen: Normal';
+            btn.style.color = 'var(--text-muted)';
+            btn.style.borderColor = 'var(--border-subtle)';
+        }
+    }
+}
+
+async function toggleScreenWakeLock() {
+    keepScreenAwake = !keepScreenAwake;
+    await IronDB.setSetting('keepScreenAwake', keepScreenAwake);
+    const toggle = document.getElementById('wakeLockToggle');
+    if (toggle) toggle.checked = keepScreenAwake;
+    if (keepScreenAwake) {
+        await requestWakeLock();
+    } else {
+        await releaseWakeLock();
+    }
+    updateWakeLockUI();
+}
+
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && keepScreenAwake) {
+        await requestWakeLock();
+    }
+});
 
 // --- NAVIGATION & TABS ---
 function initNavigation() {
@@ -242,7 +342,6 @@ async function startWorkoutSession(title, initialExercises = []) {
 function resumeActiveWorkout() {
     document.getElementById('idleWorkoutView').classList.add('hidden');
     document.getElementById('activeWorkoutView').classList.remove('hidden');
-    document.getElementById('headerWorkoutStatus').classList.remove('hidden');
 
     const titleInput = document.getElementById('workoutTitleInput');
     titleInput.value = activeWorkout.title || 'Workout Session';
@@ -251,6 +350,12 @@ function resumeActiveWorkout() {
         persistActiveWorkout();
     };
 
+    // Keep screen awake during active workout if enabled
+    if (keepScreenAwake) {
+        requestWakeLock();
+    }
+    updateWakeLockUI();
+
     // Start elapsed session timer
     if (workoutTimerInterval) clearInterval(workoutTimerInterval);
     workoutTimerInterval = setInterval(() => {
@@ -258,7 +363,6 @@ function resumeActiveWorkout() {
         activeWorkout.durationSeconds = Math.floor((Date.now() - activeWorkout.startTime) / 1000);
         const formatted = IronTimer.formatTime(activeWorkout.durationSeconds);
         document.getElementById('sessionTimerDisplay').textContent = `⏱ Elapsed: ${formatted}`;
-        document.getElementById('headerTimer').textContent = formatted;
         persistActiveWorkout();
     }, 1000);
 
@@ -399,8 +503,10 @@ async function toggleSetComplete(exIndex, setIndex) {
             }
         }
 
-        // Auto-start rest timer
-        IronTimer.start(defaultRestSeconds);
+        // Auto-start rest timer only if opted-in in settings (default: false)
+        if (autoRestTimer) {
+            IronTimer.start(defaultRestSeconds);
+        }
     } else {
         set.isPR = false;
     }
@@ -451,7 +557,6 @@ function updateTotalVolume() {
 
 // Finish & Save Workout
 document.getElementById('finishWorkoutBtn').addEventListener('click', finishActiveWorkout);
-document.getElementById('headerFinishBtn').addEventListener('click', finishActiveWorkout);
 
 async function finishActiveWorkout() {
     if (!activeWorkout) return;
@@ -514,7 +619,6 @@ async function finishActiveWorkout() {
     // Reset View
     document.getElementById('activeWorkoutView').classList.add('hidden');
     document.getElementById('idleWorkoutView').classList.remove('hidden');
-    document.getElementById('headerWorkoutStatus').classList.add('hidden');
 }
 
 document.getElementById('closeSummaryBtn').addEventListener('click', () => {
@@ -532,7 +636,6 @@ document.getElementById('cancelWorkoutBtn').addEventListener('click', () => {
 
         document.getElementById('activeWorkoutView').classList.add('hidden');
         document.getElementById('idleWorkoutView').classList.remove('hidden');
-        document.getElementById('headerWorkoutStatus').classList.add('hidden');
     }
 });
 

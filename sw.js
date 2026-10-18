@@ -1,5 +1,5 @@
 // sw.js - IronLog Service Worker for 100% Offline Gym Operation
-const CACHE_NAME = 'ironlog-v3';
+const CACHE_NAME = 'ironlog-v4';
 
 const ASSETS_TO_CACHE = [
     './',
