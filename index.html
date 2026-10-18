@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>IronLog - Workout & PR Tracker</title>
+    <meta name="description"
+        content="Offline-first gym weight training tracker with rest timer, progressive overload, and PR tracking.">
+    <meta name="theme-color" content="#090a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IronLog">
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- App Header -->
+    <header>
+        <div class="logo-wrap">
+            <div class="logo-icon">⚡</div>
+            <span class="logo-text">IronLog</span>
+        </div>
+        <div id="headerWorkoutStatus" class="hidden" style="display: flex; align-items: center; gap: 8px;">
+            <span id="headerTimer"
+                style="font-family: var(--font-mono); font-size: 14px; font-weight: 800; color: var(--accent-emerald);">00:00</span>
+            <button id="headerFinishBtn" class="btn btn-primary btn-sm">Finish</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="mainContainer">
+
+        <!-- VIEW 1: ACTIVE WORKOUT / START WORKOUT -->
+        <section id="viewWorkout" class="view-section active">
+            <!-- Idle State (No Active Workout) -->
+            <div id="idleWorkoutView">
+                <div class="card" style="text-align: center; padding: 28px 16px;">
+                    <div style="font-size: 40px; margin-bottom: 12px;">🏋️‍♂️</div>
+                    <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">Ready to Lift?</h2>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                        Track your sets, crush PRs, and auto-time your rest intervals.
+                    </p>
+                    <button id="startEmptyWorkoutBtn" class="btn btn-primary btn-full" style="padding: 14px;">
+                        + Start Workout
+                    </button>
+                </div>
+
+                <!-- Quick Routine Starters -->
+                <h3
+                    style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 10px;">
+                    Quick Routines
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn btn-secondary routine-quick-start" data-routine="Push Day (Chest, Shoulders, Triceps)"
+                        style="flex-direction: column; align-items: flex-start; padding: 12px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #fff;">Push Day</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Chest, Delts, Triceps</span>
+                    </button>
+                    <button class="btn btn-secondary routine-quick-start" data-routine="Pull Day (Back & Biceps)"
+                        style="flex-direction: column; align-items: flex-start; padding: 12px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #fff;">Pull Day</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Lats, Traps, Biceps</span>
+                    </button>
+                    <button class="btn btn-secondary routine-quick-start" data-routine="Leg Day (Quads & Hamstrings)"
+                        style="flex-direction: column; align-items: flex-start; padding: 12px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #fff;">Leg Day</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Squats, RDLs, Calves</span>
+                    </button>
+                    <button class="btn btn-secondary routine-quick-start" data-routine="Full Body Workout"
+                        style="flex-direction: column; align-items: flex-start; padding: 12px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #fff;">Full Body</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Compound Essentials</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Workout Session View -->
+            <div id="activeWorkoutView" class="hidden">
+                <!-- Workout Title & Timer Header -->
+                <div class="card" style="margin-bottom: 12px;">
+                    <input id="workoutTitleInput" type="text"
+                        style="background: transparent; border: none; font-size: 18px; font-weight: 800; color: #fff; width: 100%; outline: none;"
+                        placeholder="Workout Title (e.g. Chest & Triceps)" />
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                        <span id="sessionTimerDisplay"
+                            style="font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-secondary);">
+                            ⏱ Elapsed: 00:00
+                        </span>
+                        <span id="sessionVolumeDisplay"
+                            style="font-size: 12px; font-weight: 700; color: var(--accent-emerald);">
+                            0 lbs Volume
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Active Exercises List -->
+                <div id="activeExercisesList">
+                    <!-- Exercise cards rendered dynamically -->
+                </div>
+
+                <!-- Active Workout Bottom Controls -->
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+                    <button id="addExerciseToWorkoutBtn" class="btn btn-secondary btn-full" style="padding: 12px;">
+                        + Add Exercise
+                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="finishWorkoutBtn" class="btn btn-primary" style="flex: 2; padding: 12px;">
+                            ✓ Finish Workout
+                        </button>
+                        <button id="cancelWorkoutBtn" class="btn btn-danger" style="flex: 1;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: EXERCISES LIBRARY -->
+        <section id="viewExercises" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h2 style="font-size: 18px; font-weight: 800;">Exercise Library</h2>
+                <button id="openCustomExerciseModalBtn" class="btn btn-primary btn-sm">+ Custom</button>
+            </div>
+
+            <input id="exerciseSearchInput" type="text" class="search-bar" placeholder="🔍 Search exercises (e.g. Bench, Squat)..." />
+
+            <div class="filter-scroll" id="muscleFilterPills">
+                <button class="filter-pill active" data-category="All">All</button>
+                <button class="filter-pill" data-category="Chest">Chest</button>
+                <button class="filter-pill" data-category="Back">Back</button>
+                <button class="filter-pill" data-category="Legs">Legs</button>
+                <button class="filter-pill" data-category="Shoulders">Shoulders</button>
+                <button class="filter-pill" data-category="Arms">Arms</button>
+                <button class="filter-pill" data-category="Core">Core</button>
+            </div>
+
+            <div id="exerciseLibraryList" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Exercises rendered dynamically -->
+            </div>
+        </section>
+
+        <!-- VIEW 3: PERSONAL RECORDS (PRs) -->
+        <section id="viewPRs" class="view-section">
+            <div style="margin-bottom: 14px;">
+                <h2 style="font-size: 18px; font-weight: 800;">Personal Records</h2>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                    Calculated with Epley 1RM formula: Weight × (1 + Reps/30)
+                </p>
+            </div>
+
+            <div id="prsList" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- PR cards rendered dynamically -->
+            </div>
+        </section>
+
+        <!-- VIEW 4: WORKOUT HISTORY -->
+        <section id="viewHistory" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <div>
+                    <h2 style="font-size: 18px; font-weight: 800;">Workout Log</h2>
+                    <p style="font-size: 12px; color: var(--text-muted);">Saved locally in IndexedDB</p>
+                </div>
+                <button id="exportHistoryBtn" class="btn btn-secondary btn-sm">Export</button>
+            </div>
+
+            <div id="historyList">
+                <!-- History cards rendered dynamically -->
+            </div>
+        </section>
+
+        <!-- VIEW 5: SETTINGS -->
+        <section id="viewSettings" class="view-section">
+            <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 14px;">Settings & Cloud</h2>
+
+            <div class="card">
+                <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Units & Defaults</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <span style="font-size: 13px;">Weight Unit</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button id="unitLbsBtn" class="filter-pill active">lbs</button>
+                        <button id="unitKgBtn" class="filter-pill">kg</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <span style="font-size: 13px;">Default Rest Timer</span>
+                    <select id="defaultRestSelect" class="filter-pill" style="background: var(--bg-surface-elevated); color: #fff;">
+                        <option value="60">60s (1 min)</option>
+                        <option value="90" selected>90s (1.5 min)</option>
+                        <option value="120">120s (2 min)</option>
+                        <option value="180">180s (3 min)</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px;">Rest Beep Sound</span>
+                    <input id="soundToggle" type="checkbox" checked style="accent-color: var(--accent-emerald); width: 18px; height: 18px;" />
+                </div>
+            </div>
+
+            <!-- Phase 2 Cloud Sync Preview -->
+            <div class="card" style="border-color: rgba(99, 102, 241, 0.4);">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="font-size: 18px;">☁️</span>
+                    <h3 style="font-size: 14px; font-weight: 700; color: #fff;">Phase 2: Cloud Sync Layer</h3>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+                    Every workout record is already stored with <code style="color: var(--accent-amber); font-weight: bold;">isSynced: false</code>. Once you enjoy your local gym sessions, Phase 2 connects this app to Azure Cosmos DB for automatic cloud backups.
+                </p>
+                <div style="background-color: var(--bg-base); padding: 10px; border-radius: var(--radius-md); font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary);">
+                    <div>Local Workouts: <span id="localWorkoutsCount" style="color: #fff; font-weight: bold;">0</span></div>
+                    <div>Unsynced Queue: <span id="unsyncedCount" style="color: var(--accent-amber); font-weight: bold;">0</span></div>
+                </div>
+            </div>
+
+            <!-- Backup & Restore -->
+            <div class="card">
+                <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">Data Backup</h3>
+                <div style="display: flex; gap: 8px;">
+                    <button id="backupJsonBtn" class="btn btn-secondary" style="flex: 1;">📥 Download JSON</button>
+                    <button id="restoreJsonBtn" class="btn btn-secondary" style="flex: 1;">📤 Import JSON</button>
+                </div>
+                <input id="restoreFileInput" type="file" accept=".json" class="hidden" />
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Floating Rest Timer Bar -->
+    <div id="floatingTimerBar" class="hidden">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 16px;">⏱</span>
+            <div>
+                <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Rest Timer</div>
+                <span id="timerCountdown" class="timer-digits">1:30</span>
+            </div>
+        </div>
+        <div class="timer-controls">
+            <button id="timerMinus30Btn" class="timer-pill-btn">-30s</button>
+            <button id="timerPlus30Btn" class="timer-pill-btn">+30s</button>
+            <button id="timerToggleBtn" class="timer-pill-btn" style="background-color: var(--accent-amber); color: #000; font-size: 14px;">⏸</button>
+            <button id="timerStopBtn" class="timer-pill-btn" style="color: var(--accent-rose);">✕</button>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" data-view="viewWorkout">
+            <span class="icon">🏋️</span>
+            <span>Workout</span>
+        </button>
+        <button class="nav-btn" data-view="viewExercises">
+            <span class="icon">📚</span>
+            <span>Exercises</span>
+        </button>
+        <button class="nav-btn" data-view="viewPRs">
+            <span class="icon">🏆</span>
+            <span>Records</span>
+        </button>
+        <button class="nav-btn" data-view="viewHistory">
+            <span class="icon">📜</span>
+            <span>History</span>
+        </button>
+        <button class="nav-btn" data-view="viewSettings">
+            <span class="icon">⚙️</span>
+            <span>Settings</span>
+        </button>
+    </nav>
+
+    <!-- MODAL 1: EXERCISE PICKER -->
+    <div id="exercisePickerModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="font-size: 16px; font-weight: 800;">Select Exercise</h3>
+                <button id="closePickerBtn" class="btn-remove-set" style="font-size: 20px;">✕</button>
+            </div>
+            <div style="padding: 12px 16px 0;">
+                <input id="pickerSearchInput" type="text" class="search-bar" placeholder="🔍 Search exercise..." />
+                <div class="filter-scroll" id="pickerFilterPills">
+                    <button class="filter-pill active" data-category="All">All</button>
+                    <button class="filter-pill" data-category="Chest">Chest</button>
+                    <button class="filter-pill" data-category="Back">Back</button>
+                    <button class="filter-pill" data-category="Legs">Legs</button>
+                    <button class="filter-pill" data-category="Shoulders">Shoulders</button>
+                    <button class="filter-pill" data-category="Arms">Arms</button>
+                    <button class="filter-pill" data-category="Core">Core</button>
+                </div>
+            </div>
+            <div class="modal-body" id="pickerExercisesList" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Picker items rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CUSTOM EXERCISE CREATOR -->
+    <div id="customExerciseModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="font-size: 16px; font-weight: 800;">Create Custom Exercise</h3>
+                <button id="closeCustomExBtn" class="btn-remove-set" style="font-size: 20px;">✕</button>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Exercise Name</label>
+                    <input id="customExNameInput" type="text" class="search-bar" style="margin-top: 4px; margin-bottom: 0;" placeholder="e.g. Incline Smith Press" />
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Target Muscle Group</label>
+                    <select id="customExCategorySelect" class="search-bar" style="margin-top: 4px; margin-bottom: 0;">
+                        <option value="Chest">Chest</option>
+                        <option value="Back">Back</option>
+                        <option value="Legs">Legs</option>
+                        <option value="Shoulders">Shoulders</option>
+                        <option value="Arms">Arms</option>
+                        <option value="Core">Core</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Equipment</label>
+                    <select id="customExEquipmentSelect" class="search-bar" style="margin-top: 4px; margin-bottom: 0;">
+                        <option value="Barbell">Barbell</option>
+                        <option value="Dumbbell">Dumbbell</option>
+                        <option value="Cable">Cable</option>
+                        <option value="Machine">Machine</option>
+                        <option value="Bodyweight">Bodyweight</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveCustomExBtn" class="btn btn-primary btn-full">Save Exercise</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: WORKOUT SUMMARY (FINISHED) -->
+    <div id="workoutSummaryModal" class="modal-overlay hidden">
+        <div class="modal-content" style="text-align: center;">
+            <div class="modal-header" style="justify-content: center;">
+                <h3 style="font-size: 18px; font-weight: 800;">🎉 Workout Completed!</h3>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="font-size: 42px;">💪</div>
+                <div id="summaryWorkoutTitle" style="font-size: 18px; font-weight: 800; color: #fff;">Chest & Triceps</div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div class="card" style="margin-bottom: 0; padding: 12px;">
+                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Duration</div>
+                        <div id="summaryDuration" style="font-size: 18px; font-weight: 900; color: var(--accent-cyan); font-family: var(--font-mono); margin-top: 4px;">45:20</div>
+                    </div>
+                    <div class="card" style="margin-bottom: 0; padding: 12px;">
+                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Total Volume</div>
+                        <div id="summaryVolume" style="font-size: 18px; font-weight: 900; color: var(--accent-emerald); font-family: var(--font-mono); margin-top: 4px;">12,450 lbs</div>
+                    </div>
+                </div>
+
+                <div id="summaryPRsSection" class="hidden" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 10px;">
+                    <div style="font-size: 12px; font-weight: 800; color: var(--accent-amber); margin-bottom: 4px;">🔥 New Personal Records!</div>
+                    <div id="summaryPRsList" style="font-size: 12px; color: #fff;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeSummaryBtn" class="btn btn-primary btn-full">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="db.js"></script>
+    <script src="audio.js"></script>
+    <script src="timer.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
