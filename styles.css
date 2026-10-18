@@ -49,10 +49,14 @@ body {
 
 /* App Header */
 header {
-    background-color: rgba(18, 20, 29, 0.9);
-    backdrop-filter: blur(12px);
+    background-color: rgba(18, 20, 29, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border-subtle);
-    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: 12px;
+    padding-left: calc(16px + env(safe-area-inset-left, 0px));
+    padding-right: calc(16px + env(safe-area-inset-right, 0px));
     position: sticky;
     top: 0;
     z-index: 40;
@@ -95,7 +99,9 @@ main {
     flex: 1;
     overflow-y: auto;
     padding: 16px;
-    padding-bottom: 90px; /* Space for bottom nav & floating timer */
+    padding-left: calc(16px + env(safe-area-inset-left, 0px));
+    padding-right: calc(16px + env(safe-area-inset-right, 0px));
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); /* Space for bottom nav & floating timer */
 }
 
 .view-section {
@@ -120,10 +126,14 @@ nav.bottom-nav {
     right: 0;
     background-color: rgba(18, 20, 29, 0.95);
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--border-subtle);
     display: flex;
     justify-content: space-around;
-    padding: 8px 12px;
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    padding-left: calc(12px + env(safe-area-inset-left, 0px));
+    padding-right: calc(12px + env(safe-area-inset-right, 0px));
     z-index: 50;
 }
 
@@ -363,13 +373,14 @@ nav.bottom-nav {
 /* Floating Rest Timer Bar */
 #floatingTimerBar {
     position: fixed;
-    bottom: 64px;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     left: 16px;
     right: 16px;
     max-width: 480px;
     margin: 0 auto;
     background: rgba(18, 20, 29, 0.95);
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--accent-amber);
     box-shadow: 0 4px 20px rgba(245, 158, 11, 0.25);
     border-radius: var(--radius-full);
